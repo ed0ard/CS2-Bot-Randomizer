@@ -14,12 +14,12 @@ namespace BotRandomizer;
 public class BotRandomizerPlugin : BasePlugin
 {
     public override string ModuleName => "BotRandomizer";
-    public override string ModuleVersion => "1.2.4";
-    public override string ModuleAuthor => "ed0ard & Misaka17032";
+    public override string ModuleVersion => "1.2.5";
+    public override string ModuleAuthor => "ed0ard & Misaka17032 & XBribo";
     public override string ModuleDescription => "Randomize knives, gloves, weapon skins, agent models, music kits for bots";
 
     private readonly Random _rng = new();
-    private readonly Dictionary<int, string> _botModels = new();
+    private readonly Dictionary<int, (ushort DefIndex, string ModelPath)> _botAgents = new();
     private readonly Dictionary<int, int> _botKits = new();
     private readonly Dictionary<int, int> _botKnives = new();
     private readonly Dictionary<int, int> _botKnifePaints = new();
@@ -178,91 +178,93 @@ public class BotRandomizerPlugin : BasePlugin
         ["weapon_knife_kukri"] = 526,
     };
 
-    private static readonly string[] CtModels =
+    // Economy agents use their item definition index while default models use zero
+    private static readonly (ushort DefIndex, string ModelPath)[] CtAgents =
     {
-        "agents\\models\\ctm_diver\\ctm_diver_varianta.vmdl",
-        "agents\\models\\ctm_diver\\ctm_diver_variantb.vmdl",
-        "agents\\models\\ctm_diver\\ctm_diver_variantc.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_varianta.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_variantb.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_variantc.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_variantd.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_variante.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_variantf.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_variantg.vmdl",
-        "agents\\models\\ctm_fbi\\ctm_fbi_varianth.vmdl",
-        "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_varianta.vmdl",
-        "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variantb.vmdl",
-        "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variantc.vmdl",
-        "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variantd.vmdl",
-        "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variante.vmdl",
-        "agents\\models\\ctm_sas\\ctm_sas.vmdl",
-        "agents\\models\\ctm_sas\\ctm_sas_variantf.vmdl",
-        "agents\\models\\ctm_sas\\ctm_sas_variantg.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variante.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variantg.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_varianti.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variantj.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variantk.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variantl.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variantm.vmdl",
-        "agents\\models\\ctm_st6\\ctm_st6_variantn.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_variante.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_variantf.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_variantg.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_varianth.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_varianti.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_variantj.vmdl",
-        "agents\\models\\ctm_swat\\ctm_swat_variantk.vmdl",
+        (4757, "agents\\models\\ctm_diver\\ctm_diver_varianta.vmdl"),
+        (4771, "agents\\models\\ctm_diver\\ctm_diver_variantb.vmdl"),
+        (4772, "agents\\models\\ctm_diver\\ctm_diver_variantc.vmdl"),
+        (0, "agents\\models\\ctm_fbi\\ctm_fbi.vmdl"),
+        (0, "agents\\models\\ctm_fbi\\ctm_fbi_varianta.vmdl"),
+        (5308, "agents\\models\\ctm_fbi\\ctm_fbi_variantb.vmdl"),
+        (0, "agents\\models\\ctm_fbi\\ctm_fbi_variantc.vmdl"),
+        (0, "agents\\models\\ctm_fbi\\ctm_fbi_variantd.vmdl"),
+        (0, "agents\\models\\ctm_fbi\\ctm_fbi_variante.vmdl"),
+        (5305, "agents\\models\\ctm_fbi\\ctm_fbi_variantf.vmdl"),
+        (5306, "agents\\models\\ctm_fbi\\ctm_fbi_variantg.vmdl"),
+        (5307, "agents\\models\\ctm_fbi\\ctm_fbi_varianth.vmdl"),
+        (4749, "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_varianta.vmdl"),
+        (4750, "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variantb.vmdl"),
+        (4751, "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variantc.vmdl"),
+        (4752, "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variantd.vmdl"),
+        (4753, "agents\\models\\ctm_gendarmerie\\ctm_gendarmerie_variante.vmdl"),
+        (0, "agents\\models\\ctm_sas\\ctm_sas.vmdl"),
+        (5601, "agents\\models\\ctm_sas\\ctm_sas_variantf.vmdl"),
+        (5602, "agents\\models\\ctm_sas\\ctm_sas_variantg.vmdl"),
+        (5401, "agents\\models\\ctm_st6\\ctm_st6_variante.vmdl"),
+        (5402, "agents\\models\\ctm_st6\\ctm_st6_variantg.vmdl"),
+        (5404, "agents\\models\\ctm_st6\\ctm_st6_varianti.vmdl"),
+        (4619, "agents\\models\\ctm_st6\\ctm_st6_variantj.vmdl"),
+        (5400, "agents\\models\\ctm_st6\\ctm_st6_variantk.vmdl"),
+        (4680, "agents\\models\\ctm_st6\\ctm_st6_variantl.vmdl"),
+        (5403, "agents\\models\\ctm_st6\\ctm_st6_variantm.vmdl"),
+        (5405, "agents\\models\\ctm_st6\\ctm_st6_variantn.vmdl"),
+        (4711, "agents\\models\\ctm_swat\\ctm_swat_variante.vmdl"),
+        (4712, "agents\\models\\ctm_swat\\ctm_swat_variantf.vmdl"),
+        (4713, "agents\\models\\ctm_swat\\ctm_swat_variantg.vmdl"),
+        (4714, "agents\\models\\ctm_swat\\ctm_swat_varianth.vmdl"),
+        (4715, "agents\\models\\ctm_swat\\ctm_swat_varianti.vmdl"),
+        (4716, "agents\\models\\ctm_swat\\ctm_swat_variantj.vmdl"),
+        (4756, "agents\\models\\ctm_swat\\ctm_swat_variantk.vmdl"),
     };
 
-    private static readonly string[] TModels =
+    // Economy agents use their item definition index while default models use zero
+    private static readonly (ushort DefIndex, string ModelPath)[] TAgents =
     {
-        "agents\\models\\tm_balkan\\tm_balkan_variantf.vmdl",
-        "agents\\models\\tm_balkan\\tm_balkan_variantg.vmdl",
-        "agents\\models\\tm_balkan\\tm_balkan_varianth.vmdl",
-        "agents\\models\\tm_balkan\\tm_balkan_varianti.vmdl",
-        "agents\\models\\tm_balkan\\tm_balkan_variantj.vmdl",
-        "agents\\models\\tm_balkan\\tm_balkan_variantk.vmdl",
-        "agents\\models\\tm_balkan\\tm_balkan_variantl.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_varianta.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantb.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantb2.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantc.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantd.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variante.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantf.vmdl",
-        "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantf2.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_varianta.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variantb.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variantc.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variantd.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variante.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variantf.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variantg.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_varianth.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_varianti.vmdl",
-        "agents\\models\\tm_leet\\tm_leet_variantj.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_varianta.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_variantb.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_variantc.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_variantd.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_variantf.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_variantg.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_varianth.vmdl",
-        "agents\\models\\tm_phoenix\\tm_phoenix_varianti.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varf.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varf1.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varf2.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varf3.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varf4.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varf5.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varg.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varh.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_vari.vmdl",
-        "agents\\models\\tm_professional\\tm_professional_varj.vmdl",
+        (5500, "agents\\models\\tm_balkan\\tm_balkan_variantf.vmdl"),
+        (5502, "agents\\models\\tm_balkan\\tm_balkan_variantg.vmdl"),
+        (5504, "agents\\models\\tm_balkan\\tm_balkan_varianth.vmdl"),
+        (5501, "agents\\models\\tm_balkan\\tm_balkan_varianti.vmdl"),
+        (5503, "agents\\models\\tm_balkan\\tm_balkan_variantj.vmdl"),
+        (4718, "agents\\models\\tm_balkan\\tm_balkan_variantk.vmdl"),
+        (5505, "agents\\models\\tm_balkan\\tm_balkan_variantl.vmdl"),
+        (4773, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_varianta.vmdl"),
+        (4774, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantb.vmdl"),
+        (4780, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantb2.vmdl"),
+        (4775, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantc.vmdl"),
+        (4776, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantd.vmdl"),
+        (4777, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variante.vmdl"),
+        (4778, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantf.vmdl"),
+        (4781, "agents\\models\\tm_jungle_raider\\tm_jungle_raider_variantf2.vmdl"),
+        (0, "agents\\models\\tm_leet\\tm_leet_varianta.vmdl"),
+        (0, "agents\\models\\tm_leet\\tm_leet_variantb.vmdl"),
+        (0, "agents\\models\\tm_leet\\tm_leet_variantc.vmdl"),
+        (0, "agents\\models\\tm_leet\\tm_leet_variantd.vmdl"),
+        (0, "agents\\models\\tm_leet\\tm_leet_variante.vmdl"),
+        (5108, "agents\\models\\tm_leet\\tm_leet_variantf.vmdl"),
+        (5105, "agents\\models\\tm_leet\\tm_leet_variantg.vmdl"),
+        (5106, "agents\\models\\tm_leet\\tm_leet_varianth.vmdl"),
+        (5107, "agents\\models\\tm_leet\\tm_leet_varianti.vmdl"),
+        (5109, "agents\\models\\tm_leet\\tm_leet_variantj.vmdl"),
+        (0, "agents\\models\\tm_phoenix\\tm_phoenix.vmdl"),
+        (0, "agents\\models\\tm_phoenix\\tm_phoenix_varianta.vmdl"),
+        (0, "agents\\models\\tm_phoenix\\tm_phoenix_variantb.vmdl"),
+        (0, "agents\\models\\tm_phoenix\\tm_phoenix_variantc.vmdl"),
+        (0, "agents\\models\\tm_phoenix\\tm_phoenix_variantd.vmdl"),
+        (5206, "agents\\models\\tm_phoenix\\tm_phoenix_variantf.vmdl"),
+        (5207, "agents\\models\\tm_phoenix\\tm_phoenix_variantg.vmdl"),
+        (5205, "agents\\models\\tm_phoenix\\tm_phoenix_varianth.vmdl"),
+        (5208, "agents\\models\\tm_phoenix\\tm_phoenix_varianti.vmdl"),
+        (4726, "agents\\models\\tm_professional\\tm_professional_varf.vmdl"),
+        (4733, "agents\\models\\tm_professional\\tm_professional_varf1.vmdl"),
+        (4734, "agents\\models\\tm_professional\\tm_professional_varf2.vmdl"),
+        (4735, "agents\\models\\tm_professional\\tm_professional_varf3.vmdl"),
+        (4736, "agents\\models\\tm_professional\\tm_professional_varf4.vmdl"),
+        (4613, "agents\\models\\tm_professional\\tm_professional_varf5.vmdl"),
+        (4727, "agents\\models\\tm_professional\\tm_professional_varg.vmdl"),
+        (4728, "agents\\models\\tm_professional\\tm_professional_varh.vmdl"),
+        (4732, "agents\\models\\tm_professional\\tm_professional_vari.vmdl"),
+        (4730, "agents\\models\\tm_professional\\tm_professional_varj.vmdl"),
     };
 
     private static readonly int[] KitIds =
@@ -301,16 +303,17 @@ public class BotRandomizerPlugin : BasePlugin
 
         RegisterListener<Listeners.OnMapStart>(_ =>
         {
-            _botModels.Clear();
+            _botAgents.Clear();
             _botKits.Clear();
             _botKnives.Clear();
             _botKnifePaints.Clear();
             _botGloves.Clear();
             _botGunPaints.Clear();
-            foreach (var m in CtModels) Server.PrecacheModel(m);
-            foreach (var m in TModels) Server.PrecacheModel(m);
+            foreach (var agent in CtAgents) Server.PrecacheModel(agent.ModelPath);
+            foreach (var agent in TAgents) Server.PrecacheModel(agent.ModelPath);
         });
 
+        RegisterEventHandler<EventRoundPrestart>(OnRoundPrestart);
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
         RegisterEventHandler<EventRoundMvp>(OnRoundMvp, HookMode.Pre);
         RegisterEventHandler<EventPlayerTeam>(OnPlayerTeam);
@@ -325,6 +328,104 @@ public class BotRandomizerPlugin : BasePlugin
         // Event handlers, listeners and commands are auto-removed by BasePlugin,
         // but this global function hook is not.
         VirtualFunctions.GiveNamedItemFunc.Unhook(OnGiveNamedItemPost, HookMode.Post);
+    }
+
+    // Returns the agent permanently assigned to this bot until its team changes
+    private (ushort DefIndex, string ModelPath) GetOrCreateBotAgent(CCSPlayerController player)
+    {
+        if (_botAgents.TryGetValue(player.Slot, out var assigned))
+            return assigned;
+
+        var pool = (CsTeam)player.TeamNum == CsTeam.CounterTerrorist ? CtAgents : TAgents;
+        assigned = pool[_rng.Next(pool.Length)];
+        _botAgents[player.Slot] = assigned;
+        return assigned;
+    }
+
+    // Applies each bot's assigned economy agent to the active team intro positions
+    [GameEventHandler]
+    public HookResult OnRoundPrestart(EventRoundPrestart @event, GameEventInfo info)
+    {
+        Server.NextFrame(ApplyIntroAgents);
+        return HookResult.Continue;
+    }
+
+    // Updates both teams only while the game is preparing the team intro
+    private void ApplyIntroAgents()
+    {
+        var gameRules = Utilities
+            .FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules")
+            .FirstOrDefault()
+            ?.GameRules;
+
+        if (gameRules == null || !gameRules.TeamIntroPeriod)
+            return;
+
+        ApplyIntroAgentsForTeam(
+            "team_intro_counterterrorist",
+            CsTeam.CounterTerrorist,
+            gameRules.CTTeamIntroVariant);
+        ApplyIntroAgentsForTeam(
+            "team_intro_terrorist",
+            CsTeam.Terrorist,
+            gameRules.TTeamIntroVariant);
+    }
+
+    // Matches bot controllers to active intro positions and publishes their agent items
+    private void ApplyIntroAgentsForTeam(string designerName, CsTeam team, int introVariant)
+    {
+        var teamPlayers = Utilities.GetPlayers()
+            .Where(player => player.IsValid && (CsTeam)player.TeamNum == team)
+            .OrderBy(player => player.Slot)
+            .ToList();
+        var bots = teamPlayers
+            .Where(player => player.IsBot)
+            .ToList();
+
+        if (bots.Count == 0)
+            return;
+
+        var previews = Utilities
+            .FindAllEntitiesByDesignerName<CCSGO_TeamPreviewCharacterPosition>(designerName)
+            .Where(preview => preview.IsValid && preview.Variant == introVariant)
+            .OrderBy(preview => preview.Ordinal)
+            .Take(teamPlayers.Count)
+            .ToList();
+        var unmatchedBots = new List<CCSPlayerController>(bots);
+        var unmatchedPreviews = new List<CCSGO_TeamPreviewCharacterPosition>(previews);
+
+        foreach (var bot in bots.Where(bot => bot.SteamID != 0))
+        {
+            var preview = unmatchedPreviews.FirstOrDefault(candidate => candidate.Xuid == bot.SteamID);
+            if (preview == null)
+                continue;
+
+            ApplyIntroAgent(preview, bot);
+            unmatchedBots.Remove(bot);
+            unmatchedPreviews.Remove(preview);
+        }
+
+        var botPreviews = unmatchedPreviews
+            .Where(preview => preview.Xuid == 0)
+            .OrderBy(preview => preview.Ordinal)
+            .ToList();
+        var pairCount = Math.Min(unmatchedBots.Count, botPreviews.Count);
+
+        for (var i = 0; i < pairCount; i++)
+            ApplyIntroAgent(botPreviews[i], unmatchedBots[i]);
+    }
+
+    // Writes one bot's stored economy agent to one intro position
+    private void ApplyIntroAgent(
+        CCSGO_TeamPreviewCharacterPosition preview,
+        CCSPlayerController bot)
+    {
+        var agent = GetOrCreateBotAgent(bot);
+        preview.AgentItem.ItemDefinitionIndex = agent.DefIndex;
+        Utilities.SetStateChanged(
+            preview,
+            "CCSGO_TeamPreviewCharacterPosition",
+            "m_agentItem");
     }
 
     [GameEventHandler]
@@ -345,12 +446,7 @@ public class BotRandomizerPlugin : BasePlugin
             && (CsTeam)player.TeamNum != CsTeam.Terrorist)
             return HookResult.Continue;
 
-        if (!_botModels.TryGetValue(player.Slot, out string? model))
-        {
-            string[] pool = (CsTeam)player.TeamNum == CsTeam.CounterTerrorist ? CtModels : TModels;
-            model = pool[_rng.Next(pool.Length)];
-            _botModels[player.Slot] = model;
-        }
+        var agent = GetOrCreateBotAgent(player);
 
         if (!_botKits.ContainsKey(player.Slot))
             _botKits[player.Slot] = KitIds[_rng.Next(KitIds.Length)];
@@ -365,7 +461,7 @@ public class BotRandomizerPlugin : BasePlugin
             _botGloves[player.Slot] = _rng.Next(Gloves.Length);
 
         var pawn = player.PlayerPawn.Value;
-        var assignedModel = model;
+        var assignedModel = agent.ModelPath;
         var kitId = _botKits[player.Slot];
         var knife = Knives[_botKnives[player.Slot]];
         var knifePaint = _botKnifePaints[player.Slot];
@@ -750,7 +846,7 @@ public class BotRandomizerPlugin : BasePlugin
         // After this they stay bound until the next team change or map start.
         // Music kits are intentionally kept for the whole map.
         int slot = player.Slot;
-        _botModels.Remove(slot);
+        _botAgents.Remove(slot);
         _botKnives.Remove(slot);
         _botKnifePaints.Remove(slot);
         _botGloves.Remove(slot);
