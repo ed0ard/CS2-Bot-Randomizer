@@ -99,8 +99,8 @@ public sealed class BotRandomizerPlugin : BasePlugin
         {
             writer = new MemoryFunctionWithReturn<nint, string, float, int>(
                 RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
-                    ? "55 48 89 E5 41 57 41 56 49 89 FE 41 55 41 54 53 48 89 F3 48 83 EC ? F3 0F 11 85"
-                    : "40 53 55 41 56 48 81 EC ? ? ? ? 0F 29 74 24");
+                    ? "55 48 89 E5 41 57 41 56 41 55 49 89 FD 41 54 53 48 89 F3 48 83 EC ? F3 0F 11 85"
+                    : "48 89 4C 24 ? 53 41 55 41 56");
         }
         catch (Exception exception)
         {
