@@ -11,6 +11,7 @@ internal sealed class WeaponItemViewStore : IDisposable
     private const ulong SteamId64AccountBase = 76_561_197_960_265_728;
 
     private readonly MemoryFunctionWithReturn<nint, nint>? _constructor;
+    private readonly Action<nint>? _destructor;
     private readonly MemoryFunctionWithReturn<nint, string, float, int>? _setAttributeByName;
     private readonly ILogger _logger;
     private readonly Dictionary<(int Slot, int UserId, ushort DefIndex), nint> _views = [];
@@ -19,15 +20,18 @@ internal sealed class WeaponItemViewStore : IDisposable
 
     internal WeaponItemViewStore(
         MemoryFunctionWithReturn<nint, nint>? constructor,
+        Action<nint>? destructor,
         MemoryFunctionWithReturn<nint, string, float, int>? setAttributeByName,
         ILogger logger)
     {
         _constructor = constructor;
+        _destructor = destructor;
         _setAttributeByName = setAttributeByName;
         _logger = logger;
     }
 
-    internal bool NativeAvailable => _constructor is not null && _setAttributeByName is not null;
+    internal bool NativeAvailable => _constructor is not null && _setAttributeByName is not null
+        && _destructor is not null;
 
     internal bool TryPrepare(
         SlotCosmeticState state,
@@ -39,7 +43,7 @@ internal sealed class WeaponItemViewStore : IDisposable
         out nint itemViewHandle)
     {
         itemViewHandle = nint.Zero;
-        if (_disposed || _constructor is null || _setAttributeByName is null)
+        if (_disposed || !NativeAvailable)
             return false;
 
         try
@@ -52,14 +56,17 @@ internal sealed class WeaponItemViewStore : IDisposable
                     return false;
 
                 itemViewHandle = Marshal.AllocHGlobal(classSize);
+                bool constructed = false;
                 try
                 {
-                    _constructor.Invoke(itemViewHandle);
+                    _constructor!.Invoke(itemViewHandle);
+                    constructed = true;
                     _views.Add(key, itemViewHandle);
                 }
                 catch
                 {
-                    Marshal.FreeHGlobal(itemViewHandle);
+                    if (constructed) Destroy(itemViewHandle);
+                    else Marshal.FreeHGlobal(itemViewHandle);
                     itemViewHandle = nint.Zero;
                     throw;
                 }
@@ -108,16 +115,18 @@ internal sealed class WeaponItemViewStore : IDisposable
     {
         foreach (var key in _views.Keys.Where(key => key.Slot == slot).ToArray())
         {
-            if (_views.Remove(key, out var handle))
-                Marshal.FreeHGlobal(handle);
+            Destroy(_views[key]);
+            _views.Remove(key);
         }
     }
 
     internal void Clear()
     {
-        foreach (var handle in _views.Values)
-            Marshal.FreeHGlobal(handle);
-        _views.Clear();
+        foreach (var key in _views.Keys.ToArray())
+        {
+            Destroy(_views[key]);
+            _views.Remove(key);
+        }
     }
 
     public void Dispose()
@@ -125,8 +134,17 @@ internal sealed class WeaponItemViewStore : IDisposable
         if (_disposed)
             return;
 
-        _disposed = true;
         Clear();
+        _disposed = true;
+    }
+
+    private void Destroy(nint handle)
+    {
+        // GiveNamedItem copies the view; release the source only at slot teardown
+        // or after unhooking on unload. Both platform bindings destroy members
+        // without freeing the outer AllocHGlobal allocation.
+        _destructor!(handle);
+        Marshal.FreeHGlobal(handle);
     }
 
     private void SetStickerAttributes(CAttributeList attributes, StickerSelection sticker)

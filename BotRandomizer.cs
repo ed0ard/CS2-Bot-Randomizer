@@ -112,10 +112,35 @@ public sealed class BotRandomizerPlugin : BasePlugin
 
         _applicator = new CosmeticApplicator(writer, Logger);
         MemoryFunctionWithReturn<nint, nint>? itemViewConstructor = null;
+        Action<nint>? itemViewDestructor = null;
         if (writer is not null)
         {
             try
             {
+                if (RuntimeInformation.ProcessArchitecture != Architecture.X64)
+                    throw new PlatformNotSupportedException("CEconItemView destruction requires x64");
+
+                if (OperatingSystem.IsWindows())
+                {
+                    // MSVC scalar deleting destructor: flags=0 destroys members without
+                    // deleting the outer AllocHGlobal allocation.
+                    var destructor = new MemoryFunctionWithReturn<nint, uint, nint>(
+                        "48 89 5C 24 08 48 89 6C 24 10 48 89 74 24 18 48 89 7C 24 20 41 56 48 83 EC 20 48 8D 05 ? ? ? ? 8B EA 48 89 01 48 8B D9 83 79 78 00");
+                    itemViewDestructor = handle => destructor.Invoke(handle, 0);
+                }
+                else if (OperatingSystem.IsLinux())
+                {
+                    // Itanium ABI complete-object destructor (D1): void(this), no flags.
+                    // Do not bind D0, which also calls operator delete on the outer storage.
+                    var destructor = new MemoryFunctionVoid<nint>(
+                        "55 48 8D 05 ? ? ? ? 48 89 E5 41 57 41 56 41 55 41 54 53 48 89 FB 48 83 EC ? 8B 57 78 48 89 07 85 D2");
+                    itemViewDestructor = handle => destructor.Invoke(handle);
+                }
+                else
+                {
+                    throw new PlatformNotSupportedException("CEconItemView destruction requires Windows or Linux");
+                }
+
                 // CEconItemViewConstructor
                 itemViewConstructor = new MemoryFunctionWithReturn<nint, nint>(
                     RuntimeInformation.IsOSPlatform(OSPlatform.Linux)
@@ -124,12 +149,14 @@ public sealed class BotRandomizerPlugin : BasePlugin
             }
             catch (Exception exception)
             {
+                itemViewConstructor = null;
+                itemViewDestructor = null;
                 Logger.LogError(
                     exception,
-                    "[BotRandomizer] CEconItemView constructor signature failed; weapon cosmetics disabled");
+                    "[BotRandomizer] CEconItemView lifetime signatures failed; weapon cosmetics disabled");
             }
         }
-        _weaponItemViews = new WeaponItemViewStore(itemViewConstructor, writer, Logger);
+        _weaponItemViews = new WeaponItemViewStore(itemViewConstructor, itemViewDestructor, writer, Logger);
     }
 
     private void OnMapStart(string mapName)
