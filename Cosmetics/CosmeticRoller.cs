@@ -18,6 +18,11 @@ internal sealed class CosmeticRoller
     private readonly CosmeticCatalog _catalog;
     private readonly CharmPlacementCatalog _charmPlacements;
     private readonly WeaponWearAllocator _wearAllocator = new();
+    // Paint lists belong to this roller's immutable catalog and are reused across loadouts.
+    private readonly Dictionary<IReadOnlyList<PaintCatalogEntry>, IReadOnlyList<PaintCatalogEntry>[]> _weaponRarityPools =
+        new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<IReadOnlyList<KnifePaintCatalogEntry>, IReadOnlyList<KnifePaintCatalogEntry>[]> _knifeFinishPools =
+        new(ReferenceEqualityComparer.Instance);
 
     internal CosmeticRoller(
         CosmeticCatalog catalog,
@@ -235,10 +240,14 @@ internal sealed class CosmeticRoller
 
     private PaintCatalogEntry PickWeaponPaint(IReadOnlyList<PaintCatalogEntry> paints)
     {
-        var rarityPools = paints
-            .GroupBy(paint => paint.Rarity)
-            .Select(group => (IReadOnlyList<PaintCatalogEntry>)group.ToArray())
-            .ToArray();
+        if (!_weaponRarityPools.TryGetValue(paints, out var rarityPools))
+        {
+            rarityPools = paints
+                .GroupBy(paint => paint.Rarity)
+                .Select(group => (IReadOnlyList<PaintCatalogEntry>)group.ToArray())
+                .ToArray();
+            _weaponRarityPools.Add(paints, rarityPools);
+        }
         var rarityPool = PickWeighted(
             rarityPools,
             pool => RandomizerAssets.GetWeaponRarityWeight(pool[0].Rarity));
@@ -248,10 +257,14 @@ internal sealed class CosmeticRoller
     private KnifePaintCatalogEntry PickKnifePaint(
         IReadOnlyList<KnifePaintCatalogEntry> paints)
     {
-        var finishPools = paints
-            .GroupBy(paint => paint.Finish, StringComparer.Ordinal)
-            .Select(group => (IReadOnlyList<KnifePaintCatalogEntry>)group.ToArray())
-            .ToArray();
+        if (!_knifeFinishPools.TryGetValue(paints, out var finishPools))
+        {
+            finishPools = paints
+                .GroupBy(paint => paint.Finish, StringComparer.Ordinal)
+                .Select(group => (IReadOnlyList<KnifePaintCatalogEntry>)group.ToArray())
+                .ToArray();
+            _knifeFinishPools.Add(paints, finishPools);
+        }
         var finishPool = PickWeighted(
             finishPools,
             pool => _catalog.GetKnifeFinishWeight(pool[0].Finish));
