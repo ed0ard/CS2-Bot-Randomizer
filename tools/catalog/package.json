@@ -7,6 +7,6 @@
     "update": "node update.mjs"
   },
   "dependencies": {
-    "@ianlucas/cs2-lib": "9.8.0"
+    "@ianlucas/cs2-lib": "9.9.0"
   }
 }
