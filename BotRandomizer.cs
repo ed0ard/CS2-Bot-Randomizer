@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 
 namespace BotRandomizer;
 
-public sealed class BotRandomizerPlugin : BasePlugin
+public sealed partial class BotRandomizerPlugin : BasePlugin
 {
     private readonly CosmeticStateStore _states = new();
     private readonly HashSet<int> _pendingRerolls = [];
@@ -188,6 +188,15 @@ public sealed class BotRandomizerPlugin : BasePlugin
         // Deferred one frame so this round's intro entities already exist. Rerolls are consumed
         // first, so the intro publishes the loadout the bot will actually spawn with.
         Server.NextFrame(ApplyIntroAgents);
+        // Keep republishing while the intro window is open: the client may resolve preview
+        // fields after our first write lands, and ApplyIntroAgents no-ops outside the window.
+        foreach (var delay in new[] { 0.25f, 0.5f, 1f, 2f, 4f, 6f })
+            AddTimer(delay, ApplyIntroAgents, TimerFlags.STOP_ON_MAPCHANGE);
+        if (_diagWatch || _diagWatchOnce)
+        {
+            _diagWatchOnce = false;
+            DiagWatchTimeline();
+        }
         return HookResult.Continue;
     }
 
@@ -271,6 +280,47 @@ public sealed class BotRandomizerPlugin : BasePlugin
             preview,
             "CCSGO_TeamPreviewCharacterPosition",
             "m_agentItem");
+        MarkAgentItemLeavesChanged(preview);
+    }
+
+    // Since the 1.41.9.7 update a dirty flag on the embedded m_agentItem struct alone does
+    // not reach the client; the change list has to name each networked leaf field inside
+    // CEconItemView. Offsets are resolved from the schema once.
+    private static readonly string[] EconItemViewFields =
+    {
+        "m_bInitialized",
+        "m_iItemDefinitionIndex",
+        "m_iEntityQuality",
+        "m_iItemIDHigh",
+        "m_iItemIDLow",
+        "m_iAccountID",
+        "m_szCustomName",
+        "m_szCustomNameOverride",
+    };
+
+    private static readonly Lazy<int[]> NetworkedEconItemOffsets = new(() =>
+        EconItemViewFields
+            .Where(f => NativeAPI.IsSchemaFieldNetworked("CEconItemView", f))
+            .Select(f => (int)NativeAPI.GetSchemaOffset("CEconItemView", f))
+            .ToArray());
+
+    private static void MarkAgentItemLeavesChanged(CCSGO_TeamPreviewCharacterPosition preview)
+    {
+        foreach (var offset in NetworkedEconItemOffsets.Value)
+        {
+            try
+            {
+                Utilities.SetStateChanged(
+                    preview,
+                    "CCSGO_TeamPreviewCharacterPosition",
+                    "m_agentItem",
+                    offset);
+            }
+            catch
+            {
+                // A leaf that vanished from the schema must not break the rest of the marks.
+            }
+        }
     }
 
     private HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
